@@ -1,0 +1,52 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>羊毛情报站 · 免费VPS & 优惠福利实时推送</title>
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#272b3a;--fg:#e7e9ee;--mut:#8b8f9a;--acc:#ff5b4d;--grn:#2fd27f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:900px;margin:0 auto;padding:1.5rem 1rem}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+h1{margin:0;font-size:1.5rem}h1 b{color:var(--acc)}
+.live{font-size:.85rem;color:var(--mut)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#666;margin-right:6px}.on .dot{background:var(--grn);box-shadow:0 0 8px var(--grn);animation:p 1.5s infinite}
+@keyframes p{50%{opacity:.35}}
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+input{flex:1;min-width:160px;padding:.6rem .8rem;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);outline:none}
+.chip{padding:.4rem .8rem;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer}
+.chip.a{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;margin:.6rem 0}
+.card.hot{border-left:3px solid var(--acc)}.card.new{animation:in .8s}
+@keyframes in{from{background:#3a2326;transform:translateY(-8px)}}
+.card a{color:var(--fg);font-weight:600;text-decoration:none}.card a:hover{color:var(--acc)}
+.meta{color:var(--mut);font-size:.8rem;margin-top:.3rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.t{background:#ffffff14;border-radius:4px;padding:0 6px}.t.f{background:#2fd27f33;color:var(--grn)}.t.p{background:#ff5b4d33;color:var(--acc)}
+.d{color:#aeb2bd;font-size:.88rem;margin:.3rem 0 0}
+.tip{color:var(--mut);font-size:.8rem;margin-top:1.5rem}
+</style></head><body><main>
+<header><h1>羊毛<b>情报站</b></h1><div class="live" id="live"><span class="dot"></span><span id="st">连接中…</span></div></header>
+<div class="bar"><input id="q" placeholder="搜索:机房、厂商、价格…">
+<span class="chip a" data-t="">全部</span><span class="chip" data-t="免费">🆓 免费</span><span class="chip" data-t="福利">🧧 福利</span><span class="chip" data-t="优惠码">🏷 优惠码</span><span class="chip" data-t="限时">⏰ 限时</span><span class="chip" data-t="VPS">VPS</span></div>
+<div id="list"></div>
+<p class="tip" id="src"></p>
+<p class="tip">信息来自公开 RSS 自动聚合并打标签,仅供参考;购买前请自行核实商家信誉与条款。</p>
+</main>
+<script>
+const $=s=>document.querySelector(s);let tag='',items=[];
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ago=t=>{const s=(Date.now()-t)/1e3;return s<60?'刚刚':s<3600?(s/60|0)+' 分钟前':s<86400?(s/3600|0)+' 小时前':(s/86400|0)+' 天前'};
+const card=(i,n)=>`<div class="card ${i.hot?'hot':''} ${n?'new':''}"><a href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${i.hot?'🔥 ':''}${esc(i.title)}</a>
+<div class="meta"><span>${esc(i.source)}</span><span>${ago(i.time)}</span>${i.price?`<span class="t p">${esc(i.price)}</span>`:''}${i.tags.map(t=>`<span class="t ${t==='免费'||t==='福利'?'f':''}">${t}</span>`).join('')}</div>
+${i.desc?`<p class="d">${esc(i.desc.slice(0,180))}…</p>`:''}</div>`;
+async function load(){const r=await (await fetch('/api/deals?tag='+encodeURIComponent(tag)+'&q='+encodeURIComponent($('#q').value))).json();
+ items=r.items;$('#list').innerHTML=items.map(i=>card(i)).join('')||'<p class="tip">暂无匹配内容</p>';
+ $('#src').textContent='数据源: '+Object.entries(r.status).map(([k,v])=>k+(v.ok?' ✓':' ✗')).join(' · ')+` · 共 ${r.total} 条`}
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{document.querySelector('.chip.a').classList.remove('a');c.classList.add('a');tag=c.dataset.t;load()});
+let tm;$('#q').oninput=()=>{clearTimeout(tm);tm=setTimeout(load,200)};
+function sse(){const es=new EventSource('/events');
+ es.onopen=()=>{$('#live').classList.add('on');$('#st').textContent='实时推送中'};
+ es.onerror=()=>{$('#live').classList.remove('on');$('#st').textContent='重连中…'};
+ es.addEventListener('deal',e=>{const i=JSON.parse(e.data);
+  if(tag&&!i.tags.includes(tag))return;const q=$('#q').value.toLowerCase();if(q&&!(i.title+i.desc).toLowerCase().includes(q))return;
+  $('#list').insertAdjacentHTML('afterbegin',card(i,1));
+  if(i.hot&&window.Notification&&Notification.permission==='granted')new Notification('🔥 '+i.title)});}
+if(window.Notification&&Notification.permission==='default')document.addEventListener('click',()=>Notification.requestPermission(),{once:true});
+load();sse();setInterval(load,600000);
+</script></body></html>
